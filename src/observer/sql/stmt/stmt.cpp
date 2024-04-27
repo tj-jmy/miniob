@@ -94,6 +94,16 @@ RC Stmt::create_stmt(Db *db, ParsedSqlNode &sql_node, Stmt *&stmt)
       return CalcStmt::create(sql_node.calc, stmt);
     }
 
+    case SCF_DROP_TABLE: {
+      const DropTableSqlNode &drop_table = sql->sstr[sql->q_size - 1].drop_table;  // 拿到要drop 的表
+      RC                      rc         = handler_->drop_table(
+          current_db, drop_table.relation_name);  // 调用drop table接口，drop table要在handler中实现
+      snprintf(response,
+          sizeof(response),
+          "%s\n",
+          rc == RC::SUCCESS ? "SUCCESS" : "FAILURE");  // 返回结果，带不带换行符都可以
+    } break;
+
     default: {
       LOG_INFO("Command::type %d doesn't need to create statement.", sql_node.flag);
     } break;

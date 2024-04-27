@@ -50,6 +50,8 @@ public:
   RC create(int32_t table_id, const char *path, const char *name, const char *base_dir, int attribute_count,
       const AttrInfoSqlNode attributes[]);
 
+  RC destroy(const char *dir);
+
   /**
    * 打开一个表
    * @param meta_file 保存表元数据的文件完整路径
