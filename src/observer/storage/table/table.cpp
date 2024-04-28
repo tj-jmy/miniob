@@ -53,17 +53,18 @@ Table::~Table()
 RC Table::create(int32_t table_id, const char *path, const char *name, const char *base_dir, int attribute_count,
     const AttrInfoSqlNode attributes[])
 {
+  // 判断表的id是否合法
   if (table_id < 0) {
     LOG_WARN("invalid table id. table_id=%d, table_name=%s", table_id, name);
     return RC::INVALID_ARGUMENT;
   }
-
+  // 判断表的名字是否为空
   if (common::is_blank(name)) {
     LOG_WARN("Name cannot be empty");
     return RC::INVALID_ARGUMENT;
   }
   LOG_INFO("Begin to create table %s:%s", base_dir, name);
-
+  // 判断属性的数量是否合法
   if (attribute_count <= 0 || nullptr == attributes) {
     LOG_WARN("Invalid arguments. table_name=%s, attribute_count=%d, attributes=%p", name, attribute_count, attributes);
     return RC::INVALID_ARGUMENT;
@@ -85,12 +86,12 @@ RC Table::create(int32_t table_id, const char *path, const char *name, const cha
 
   close(fd);
 
-  // 创建文件
+  // 初始化table_meta_
   if ((rc = table_meta_.init(table_id, name, attribute_count, attributes)) != RC::SUCCESS) {
     LOG_ERROR("Failed to init table meta. name:%s, ret:%d", name, rc);
     return rc;  // delete table file
   }
-
+  // 创建元数据meta文件
   std::fstream fs;
   fs.open(path, std::ios_base::out | std::ios_base::binary);
   if (!fs.is_open()) {
@@ -101,7 +102,7 @@ RC Table::create(int32_t table_id, const char *path, const char *name, const cha
   // 记录元数据到文件中
   table_meta_.serialize(fs);
   fs.close();
-
+  // 创建数据文件
   std::string        data_file = table_data_file(base_dir, name);
   BufferPoolManager &bpm       = BufferPoolManager::instance();
   rc                           = bpm.create_file(data_file.c_str());
@@ -109,7 +110,7 @@ RC Table::create(int32_t table_id, const char *path, const char *name, const cha
     LOG_ERROR("Failed to create disk buffer pool of data file. file name=%s", data_file.c_str());
     return rc;
   }
-
+  // 初始化table类的record handler
   rc = init_record_handler(base_dir);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to create table %s due to init record handler failed.", data_file.c_str());
@@ -129,22 +130,15 @@ RC Table::destroy(const char *dir)
   if (rc != RC::SUCCESS)
     return rc;
 
-  std::string path = table_meta_file(dir, name());
+  std::string path = table_meta_file(dir, name());  // 元数据文件
   if (unlink(path.c_str()) != 0) {
     LOG_ERROR("Failed to remove meta file=%s, errno=%d", path.c_str(), errno);
     return RC::GENERIC_ERROR;
   }
 
-  std::string data_file = std::string(dir) + "/" + name() + TABLE_DATA_SUFFIX;
-  if (unlink(data_file.c_str()) != 0) {  // 删除描述表元数据的文件
+  std::string data_file = table_data_file(dir, name());
+  if (unlink(data_file.c_str()) != 0) {  // 删除描述表数据的文件
     LOG_ERROR("Failed to remove data file=%s, errno=%d", data_file.c_str(), errno);
-    return RC::GENERIC_ERROR;
-  }
-
-  std::string text_data_file = std::string(dir) + "/" + name() + TABLE_TEXT_DATA_SUFFIX;
-  if (unlink(text_data_file.c_str()) !=
-      0) {  // 删除表实现text字段的数据文件（后续实现了text case时需要考虑，最开始可以不考虑这个逻辑）
-    LOG_ERROR("Failed to remove text data file=%s, errno=%d", text_data_file.c_str(), errno);
     return RC::GENERIC_ERROR;
   }
 
@@ -152,7 +146,7 @@ RC Table::destroy(const char *dir)
   for (int i = 0; i < index_num; i++) {  // 清理所有的索引相关文件数据与索引元数据
     ((BplusTreeIndex *)indexes_[i])->close();
     const IndexMeta *index_meta = table_meta_.index(i);
-    std::string      index_file = index_data_file(dir, name(), index_meta->name());
+    std::string      index_file = table_index_file(dir, name(), index_meta->name());
     if (unlink(index_file.c_str()) != 0) {
       LOG_ERROR("Failed to remove index file=%s, errno=%d", index_file.c_str(), errno);
       return RC::GENERIC_ERROR;
@@ -341,7 +335,7 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
 RC Table::init_record_handler(const char *base_dir)
 {
   std::string data_file = table_data_file(base_dir, table_meta_.name());
-
+  // 创建数据文件的buffer pool
   RC rc = BufferPoolManager::instance().open_file(data_file.c_str(), data_buffer_pool_);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to open disk buffer pool for file:%s. rc=%d:%s", data_file.c_str(), rc, strrc(rc));
@@ -349,7 +343,7 @@ RC Table::init_record_handler(const char *base_dir)
   }
 
   record_handler_ = new RecordFileHandler();
-
+  // 初始化record handler
   rc = record_handler_->init(data_buffer_pool_);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to init record handler. rc=%s", strrc(rc));

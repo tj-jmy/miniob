@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/calc_stmt.h"
 #include "sql/stmt/create_index_stmt.h"
 #include "sql/stmt/create_table_stmt.h"
+#include "sql/stmt/drop_table_stmt.h"
 #include "sql/stmt/delete_stmt.h"
 #include "sql/stmt/desc_table_stmt.h"
 #include "sql/stmt/exit_stmt.h"
@@ -57,6 +58,10 @@ RC Stmt::create_stmt(Db *db, ParsedSqlNode &sql_node, Stmt *&stmt)
       return CreateTableStmt::create(db, sql_node.create_table, stmt);
     }
 
+    case SCF_DROP_TABLE: {
+      return DropTableStmt::create(db, sql_node.drop_table, stmt);
+    }
+
     case SCF_DESC_TABLE: {
       return DescTableStmt::create(db, sql_node.desc_table, stmt);
     }
@@ -93,16 +98,6 @@ RC Stmt::create_stmt(Db *db, ParsedSqlNode &sql_node, Stmt *&stmt)
     case SCF_CALC: {
       return CalcStmt::create(sql_node.calc, stmt);
     }
-
-    case SCF_DROP_TABLE: {
-      const DropTableSqlNode &drop_table = sql->sstr[sql->q_size - 1].drop_table;  // 拿到要drop 的表
-      RC                      rc         = handler_->drop_table(
-          current_db, drop_table.relation_name);  // 调用drop table接口，drop table要在handler中实现
-      snprintf(response,
-          sizeof(response),
-          "%s\n",
-          rc == RC::SUCCESS ? "SUCCESS" : "FAILURE");  // 返回结果，带不带换行符都可以
-    } break;
 
     default: {
       LOG_INFO("Command::type %d doesn't need to create statement.", sql_node.flag);

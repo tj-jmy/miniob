@@ -57,9 +57,9 @@ RC TableMeta::init(int32_t table_id, const char *name, int field_num, const Attr
 
   RC rc = RC::SUCCESS;
 
-  int field_offset  = 0;
-  int trx_field_num = 0;
-
+  int field_offset  = 0;  // 字段偏移量
+  int trx_field_num = 0;  // 系统字段数量
+  // 添加系统字段
   const vector<FieldMeta> *trx_fields = TrxKit::instance()->trx_fields();
   if (trx_fields != nullptr) {
     fields_.resize(field_num + trx_fields->size());
@@ -74,7 +74,7 @@ RC TableMeta::init(int32_t table_id, const char *name, int field_num, const Attr
   } else {
     fields_.resize(field_num);
   }
-
+  // 添加用户字段
   for (int i = 0; i < field_num; i++) {
     const AttrInfoSqlNode &attr_info = attributes[i];
     rc                               = fields_[i + trx_field_num].init(
