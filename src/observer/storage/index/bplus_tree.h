@@ -72,6 +72,9 @@ public:
       case CHARS: {
         return common::compare_string((void *)v1, attr_length_, (void *)v2, attr_length_);
       }
+      case DATES: {
+        return common::compare_date((void *)v1, (void *)v2);
+      }
       default: {
         ASSERT(false, "unknown attr type. %d", attr_type_);
         return 0;
@@ -207,11 +210,8 @@ struct IndexFileHeader
   {
     std::stringstream ss;
 
-    ss << "attr_length:" << attr_length << ","
-       << "key_length:" << key_length << ","
-       << "attr_type:" << attr_type << ","
-       << "root_page:" << root_page << ","
-       << "internal_max_size:" << internal_max_size << ","
+    ss << "attr_length:" << attr_length << "," << "key_length:" << key_length << "," << "attr_type:" << attr_type << ","
+       << "root_page:" << root_page << "," << "internal_max_size:" << internal_max_size << ","
        << "leaf_max_size:" << leaf_max_size << ";";
 
     return ss.str();

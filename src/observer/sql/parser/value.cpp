@@ -18,11 +18,11 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include <sstream>
 
-const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "floats", "booleans"};
+const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "floats", "booleans", "dates"};
 
 const char *attr_type_to_string(AttrType type)
 {
-  if (type >= UNDEFINED && type <= FLOATS) {
+  if (type >= UNDEFINED && type <= DATES) {
     return ATTR_TYPE_NAME[type];
   }
   return "unknown";
@@ -45,6 +45,8 @@ Value::Value(bool val) { set_boolean(val); }
 
 Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
+Value::Value(Date d) { set_date(d); }
+
 void Value::set_data(char *data, int length)
 {
   switch (attr_type_) {
@@ -61,6 +63,10 @@ void Value::set_data(char *data, int length)
     } break;
     case BOOLEANS: {
       num_value_.bool_value_ = *(int *)data != 0;
+      length_                = length;
+    } break;
+    case DATES: {
+      num_value_.date_value_ = *(Date *)data;
       length_                = length;
     } break;
     default: {
@@ -99,6 +105,13 @@ void Value::set_string(const char *s, int len /*= 0*/)
   length_ = str_value_.length();
 }
 
+void Value::set_date(Date d)
+{
+  attr_type_             = DATES;
+  num_value_.date_value_ = d;
+  length_                = sizeof(d);
+}
+
 void Value::set_value(const Value &value)
 {
   switch (value.attr_type_) {
@@ -113,6 +126,9 @@ void Value::set_value(const Value &value)
     } break;
     case BOOLEANS: {
       set_boolean(value.get_boolean());
+    } break;
+    case DATES: {
+      set_date(value.get_date());
     } break;
     case UNDEFINED: {
       ASSERT(false, "got an invalid value type");
@@ -148,6 +164,10 @@ std::string Value::to_string() const
     case CHARS: {
       os << str_value_;
     } break;
+    case DATES: {
+      os << (int)num_value_.date_value_.year << "-" << (int)num_value_.date_value_.month << "-"
+         << (int)num_value_.date_value_.day;
+    } break;
     default: {
       LOG_WARN("unsupported attr type: %d", attr_type_);
     } break;
@@ -174,6 +194,9 @@ int Value::compare(const Value &other) const
       case BOOLEANS: {
         return common::compare_int((void *)&this->num_value_.bool_value_, (void *)&other.num_value_.bool_value_);
       }
+      case DATES: {
+        return common::compare_date((void *)&this->num_value_.date_value_, (void *)&other.num_value_.date_value_);
+      }
       default: {
         LOG_WARN("unsupported type: %d", this->attr_type_);
       }
@@ -184,6 +207,22 @@ int Value::compare(const Value &other) const
   } else if (this->attr_type_ == FLOATS && other.attr_type_ == INTS) {
     float other_data = other.num_value_.int_value_;
     return common::compare_float((void *)&this->num_value_.float_value_, (void *)&other_data);
+  } else if (this->attr_type_ == CHARS && other.attr_type_ == DATES) {
+    Date d;
+    if (!string_to_date(this->str_value_.c_str(), d)) {
+      LOG_WARN("illegal date string: %s", other.str_value_.c_str());
+      return -1;
+    }
+    return common::compare_date((void *)&this->num_value_.date_value_, (void *)&other.num_value_.date_value_);
+  } else if (this->attr_type_ == DATES && other.attr_type_ == CHARS) {
+    Date d;
+    if (!string_to_date(other.str_value_.c_str(), d)) {
+      LOG_WARN("illegal date string: %s", this->str_value_.c_str());
+      return -1;
+    }
+    return common::compare_date((void *)&this->num_value_.date_value_, (void *)&other.num_value_.date_value_);
+  } else {
+    LOG_WARN("unsupported type: %d, %d", this->attr_type_, other.attr_type_);
   }
   LOG_WARN("not supported");
   return -1;  // TODO return rc?
@@ -208,6 +247,10 @@ int Value::get_int() const
     }
     case BOOLEANS: {
       return (int)(num_value_.bool_value_);
+    }
+    case DATES: {
+      return (int)(num_value_.date_value_.year) * 10000 + (int)(num_value_.date_value_.month) * 100 +
+             (int)(num_value_.date_value_.day);
     }
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
@@ -236,6 +279,10 @@ float Value::get_float() const
     } break;
     case BOOLEANS: {
       return float(num_value_.bool_value_);
+    } break;
+    case DATES: {
+      return float(num_value_.date_value_.year) * 10000 + float(num_value_.date_value_.month) * 100 +
+             float(num_value_.date_value_.day);
     } break;
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
@@ -278,10 +325,23 @@ bool Value::get_boolean() const
     case BOOLEANS: {
       return num_value_.bool_value_;
     } break;
+    case DATES: {
+      return num_value_.date_value_.year != 0 || num_value_.date_value_.month != 0 || num_value_.date_value_.day != 0;
+    } break;
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
       return false;
     }
   }
   return false;
+}
+
+Date Value::get_date() const
+{
+  string date_str = this->to_string();
+  Date   d;
+  if (!string_to_date(date_str.c_str(), d)) {
+    LOG_WARN("illegal date string: %s", date_str.c_str());
+  }
+  return d;
 }

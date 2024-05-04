@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/rc.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
+#include "sql/parser/date.h"
 
 FilterStmt::~FilterStmt()
 {
@@ -128,5 +129,44 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
   filter_unit->set_comp(comp);
 
   // 检查两个类型是否能够比较
+  if (filter_unit->left().is_attr && !filter_unit->right().is_attr) {
+    if (filter_unit->left().field.attr_type() != filter_unit->right().value.attr_type()) {
+      if (filter_unit->left().field.attr_type() == AttrType::DATES &&
+          filter_unit->right().value.attr_type() == AttrType::CHARS) {
+        Date date;
+        if (!string_to_date(filter_unit->right().value.get_string().c_str(), date)) {
+          LOG_WARN("invalid date format. value=%s", filter_unit->right().value.get_string().c_str());
+          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        } else {
+          FilterObj filter_obj;
+          filter_obj.init_value(Value(date));
+          filter_unit->set_right(filter_obj);
+        }
+      } else {
+        LOG_WARN("field type mismatch. left field type=%d, right value type=%d",
+          filter_unit->left().field.attr_type(), filter_unit->right().value.attr_type());
+        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+      }
+    }
+  } else if (!filter_unit->left().is_attr && filter_unit->right().is_attr) {
+    if (filter_unit->right().field.attr_type() != filter_unit->left().value.attr_type()) {
+      if (filter_unit->right().field.attr_type() == AttrType::DATES &&
+          filter_unit->left().value.attr_type() == AttrType::CHARS) {
+        Date date;
+        if (!string_to_date(filter_unit->left().value.get_string().c_str(), date)) {
+          LOG_WARN("invalid date format. value=%s", filter_unit->left().value.get_string().c_str());
+          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        } else {
+          FilterObj filter_obj;
+          filter_obj.init_value(Value(date));
+          filter_unit->set_left(filter_obj);
+        }
+      } else {
+        LOG_WARN("field type mismatch. right field type=%d, left value type=%d",
+          filter_unit->right().field.attr_type(), filter_unit->left().value.attr_type());
+        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+      }
+    }
+  }
   return rc;
 }
