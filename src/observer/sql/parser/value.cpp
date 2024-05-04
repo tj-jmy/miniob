@@ -166,7 +166,7 @@ std::string Value::to_string() const
       os << str_value_;
     } break;
     case DATES: {
-      os << setiosflags(ios::right) << setfill(' ') << setw(4) << (int)num_value_.date_value_.year << "-" << setw(2)
+      os << setiosflags(ios::right) << setfill('0') << setw(4) << (int)num_value_.date_value_.year << "-" << setw(2)
          << (int)num_value_.date_value_.month << "-" << setw(2) << (int)num_value_.date_value_.day
          << resetiosflags(ios::right);
     } break;
