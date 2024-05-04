@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/log/log.h"
 #include <sstream>
+#include <iomanip>
 
 const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "floats", "booleans", "dates"};
 
@@ -165,8 +166,9 @@ std::string Value::to_string() const
       os << str_value_;
     } break;
     case DATES: {
-      os << (int)num_value_.date_value_.year << "-" << (int)num_value_.date_value_.month << "-"
-         << (int)num_value_.date_value_.day;
+      os << setiosflags(ios::right) << setfill(' ') << setw(4) << (int)num_value_.date_value_.year << "-" << setw(2)
+         << (int)num_value_.date_value_.month << "-" << setw(2) << (int)num_value_.date_value_.day
+         << resetiosflags(ios::right);
     } break;
     default: {
       LOG_WARN("unsupported attr type: %d", attr_type_);
