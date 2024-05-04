@@ -17,8 +17,6 @@ bool string_to_date(const char *s, Date &d)
   d.month = m;
   d.day   = dd;
 
-  if (d.year < 1970 || d.year > 2038 || (d.year == 2038 && d.month > 2))
-    return false;
   if (d.month < 1 || d.month > 12)
     return false;
   if (d.day < 1 ||
