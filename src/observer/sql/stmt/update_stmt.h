@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/stmt.h"
 
 class Table;
+class FilterStmt;
 
 /**
  * @brief 更新语句
@@ -37,6 +38,8 @@ public:
   const Value       &value() const { return value_; }
   FilterStmt        *filter_stmt() const { return filter_stmt_; }
   const std::string &field_name() const { return field_name_; }
+
+  StmtType type() const override { return StmtType::UPDATE; }
 
 private:
   Table      *table_ = nullptr;

@@ -51,16 +51,19 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
     return RC::SCHEMA_FIELD_NOT_EXIST;
   }
 
+  const std::string field_name = update.attribute_name;
+
   Value          value      = update.value;
   const AttrType field_type = table->table_meta().field(i + sys_field_num)->type();
   const AttrType value_type = update.value.attr_type();
   if (field_type == AttrType::DATES && value_type == AttrType::CHARS) {
     Date date;
-    if (!string_to_date(update.value.get_string().c_str(), date)) {
-      values->set_date(date);
+    if (!string_to_date(value.get_string().c_str(), date)) {
+      LOG_WARN("invalid date format. table=%s, field=%s, value=%s",
+            table_name, field_name, value.get_string().c_str());
+      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
     } else {
-      LOG_WARN("failed to convert string to date. string=%s", update.value.get_string().c_str());
-      return RC::INTERNAL;
+      value.set_date(date);
     }
   } else {
     if (field_type != value_type) {
@@ -68,8 +71,6 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
       return RC::SCHEMA_FIELD_TYPE_MISMATCH;
     }
   }
-
-  std::string field_name = update.attribute_name;
 
   std::unordered_map<std::string, Table *> table_map;
   table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
@@ -83,5 +84,5 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   }
 
   stmt = new UpdateStmt(table, value, field_name, filter_stmt);
-  return RC::INTERNAL;
+  return RC::SUCCESS;
 }

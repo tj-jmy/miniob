@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/calc_logical_operator.h"
 #include "sql/operator/delete_logical_operator.h"
+#include "sql/operator/update_logical_operator.h"
 #include "sql/operator/explain_logical_operator.h"
 #include "sql/operator/insert_logical_operator.h"
 #include "sql/operator/join_logical_operator.h"
@@ -28,6 +29,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/stmt/calc_stmt.h"
 #include "sql/stmt/delete_stmt.h"
+#include "sql/stmt/update_stmt.h"
 #include "sql/stmt/explain_stmt.h"
 #include "sql/stmt/filter_stmt.h"
 #include "sql/stmt/insert_stmt.h"
@@ -62,6 +64,12 @@ RC LogicalPlanGenerator::create(Stmt *stmt, unique_ptr<LogicalOperator> &logical
       DeleteStmt *delete_stmt = static_cast<DeleteStmt *>(stmt);
 
       rc = create_plan(delete_stmt, logical_operator);
+    } break;
+
+    case StmtType::UPDATE: {
+      UpdateStmt *update_stmt = static_cast<UpdateStmt *>(stmt);
+
+      rc = create_plan(update_stmt, logical_operator);
     } break;
 
     case StmtType::EXPLAIN: {
@@ -203,11 +211,10 @@ RC LogicalPlanGenerator::create_plan(DeleteStmt *delete_stmt, unique_ptr<Logical
 
 RC LogicalPlanGenerator::create_plan(UpdateStmt *update_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
-  Table        *table        = update_stmt->table();
-  Value        *values       = update_stmt->values();
-  int           value_amount = update_stmt->value_amount();
-  FilterStmt   *filter_stmt  = update_stmt->filter_stmt();
-  const string &field_name   = update_stmt->field_name();
+  Table        *table       = update_stmt->table();
+  const Value   value       = update_stmt->value();
+  FilterStmt   *filter_stmt = update_stmt->filter_stmt();
+  const string &field_name  = update_stmt->field_name();
 
   std::vector<Field> fields;
   for (int i = table->table_meta().sys_field_num(); i < table->table_meta().field_num(); i++) {
@@ -222,7 +229,7 @@ RC LogicalPlanGenerator::create_plan(UpdateStmt *update_stmt, unique_ptr<Logical
     return rc;
   }
 
-  unique_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, field_name, values, value_amount));
+  unique_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, value, field_name));
 
   if (predicate_oper) {
     predicate_oper->add_child(std::move(table_get_oper));

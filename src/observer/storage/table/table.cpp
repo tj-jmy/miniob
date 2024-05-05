@@ -539,7 +539,7 @@ RC Table::sync()
   return rc;
 }
 
-RC Table::update_record(const Value value, std::string field_name, Record &record)
+RC Table::update_record(const Value value, const std::string field_name, Record &record)
 {
   // 检查字段类型是否一致
   const int normal_field_start_index = table_meta_.sys_field_num();

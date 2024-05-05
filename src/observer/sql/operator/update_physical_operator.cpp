@@ -54,7 +54,12 @@ RC UpdatePhysicalOperator::next()
 
     RowTuple *row_tuple  = static_cast<RowTuple *>(tuple);
     Record   &record     = row_tuple->record();
-    Record    new_record = table_->update_record(value_, field_name_, record);
+    Record    new_record = record;
+    rc                   = table_->update_record(value_, field_name_, new_record);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to update record: %s", strrc(rc));
+      return rc;
+    }
 
     rc = trx_->delete_record(table_, record);
     if (rc != RC::SUCCESS) {
@@ -66,8 +71,8 @@ RC UpdatePhysicalOperator::next()
       LOG_WARN("failed to insert record: %s", strrc(rc));
       return rc;
     }
-    rc = trx_->if (rc != RC::SUCCESS)
-    {
+
+    if (rc != RC::SUCCESS) {
       LOG_WARN("failed to Update record: %s", strrc(rc));
       return rc;
     }

@@ -67,7 +67,7 @@ public:
    * @param record    生成的记录数据
    */
   RC make_record(int value_num, const Value *values, Record &record);
-  RC update_record(const Value value, std::string field_name, Record &record);
+  RC update_record(const Value value, const std::string field_name, Record &record);
 
   /**
    * @brief 在当前的表中插入一条记录
