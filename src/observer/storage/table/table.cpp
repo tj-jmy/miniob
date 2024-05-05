@@ -538,3 +538,44 @@ RC Table::sync()
   LOG_INFO("Sync table over. table=%s", name());
   return rc;
 }
+
+RC Table::update_record(const Value value, std::string field_name, Record &record)
+{
+  // 检查字段类型是否一致
+  const int normal_field_start_index = table_meta_.sys_field_num();
+  const int field_num                = table_meta_.field_num() - normal_field_start_index;
+  int       i                        = 0;
+  for (i = 0; i < field_num; i++) {
+    const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
+    if (field->name() == field_name) {
+      break;
+    }
+  }
+  if (i == field_num) {
+    LOG_WARN("Input field name doesn't match the table's schema, table name:%s", table_meta_.name());
+    return RC::SCHEMA_FIELD_MISSING;
+  }
+
+  // 复制所有字段的值
+  int   record_size = table_meta_.record_size();
+  char *record_data = (char *)malloc(record_size);
+  memcpy(record_data, record.data(), record_size);
+
+  for (int i = 0; i < field_num; i++) {
+    const FieldMeta *field    = table_meta_.field(i + normal_field_start_index);
+    size_t           copy_len = field->len();
+    if (field->name() == field_name) {
+      if (field->type() == CHARS) {
+        const size_t data_len = value.length();
+        if (copy_len > data_len) {
+          copy_len = data_len + 1;
+        }
+      }
+      memcpy(record_data + field->offset(), value.data(), copy_len);
+      break;
+    }
+  }
+
+  record.set_data_owner(record_data, record_size);
+  return RC::SUCCESS;
+}
